@@ -28,6 +28,8 @@ export interface Article extends Item {
   coverImage: string | null
   author: string | null
   categories: string[]
+  // NOTE: 配列の検索だとエラーになるのでカンマ区切りで保存する
+  categoriesString: string
 }
 
 export const ArticleSchema = new dynamoose.Schema({
@@ -79,6 +81,7 @@ export const ArticleSchema = new dynamoose.Schema({
     type: Array,
     schema: [String],
   },
+  categoriesString: String,
 })
 
 export const ArticleModel = dynamoose.model<Article>('Blog', ArticleSchema)

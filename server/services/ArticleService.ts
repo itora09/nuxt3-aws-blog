@@ -34,6 +34,7 @@ const articleUpsert = async (data: Article) => {
     await ArticleModel.create({
       pk: 'Article',
       firstPublishedAt: new Date(data._sys.raw.firstPublishedAt).getTime(),
+      categoriesString: data.categories.join(','),
       ...data,
       id,
     })
@@ -41,26 +42,33 @@ const articleUpsert = async (data: Article) => {
   }
 
   const json = queryResult[0].toJSON()
-  await ArticleModel.update({ ...json, ...data })
+  await ArticleModel.update({
+    ...json,
+    ...data,
+    categoriesString: data.categories.join(','),
+  })
 }
 
 /**
  * 一覧取得APIのバリデーションチェックを行う
  * @param data リクエストデータ
  */
-export const validationListApi = (data: ArticleListRequest) => {
+export const validationListApi = (data: any): ArticleListRequest => {
   const result = ArticleListRequestSchema.safeParse(data)
   if (!result.success) throw new ValidationZodError(result.error)
+  return data
 }
 
-export const getArticleList = async (data: ArticleListRequest) => {
-  // TODO: 一覧APIの実装
-  console.log(data)
-  // const limit = data.limit
-  // const offset = data.offset
-  // const sort = data.sort
-  // const category = data.category
-  const query = await ArticleModel.query('pk').eq('Article').limit(1).exec()
-  console.log(query)
-  // ArticleModel.query().exec()
+export const getArticleList = (data: ArticleListRequest) => {
+  const parseResult = ArticleListRequestSchema.parse(data)
+  const limit = parseResult.limit
+  const lastKey = parseResult.last_key
+
+  let query = ArticleModel.query('pk').eq('Article').sort('descending')
+
+  if (parseResult.category)
+    query = query.where('categoriesString').contains(parseResult.category)
+  if (lastKey)
+    query = query.startAt({ pk: 'Article', firstPublishedAt: lastKey })
+  return query.limit(limit).exec()
 }

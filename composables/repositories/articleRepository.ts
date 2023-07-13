@@ -33,14 +33,8 @@ export const ArticlePostRequestSchema = z.object({
 export type ArticlePostRequest = z.infer<typeof ArticlePostRequestSchema>
 
 export const ArticleListRequestSchema = z.object({
-  limit: z.preprocess((v) => Number(v), z.number()),
-  offset: z.preprocess((v) => Number(v), z.number()),
-  sort: z
-    .object({
-      key: z.string(),
-      value: z.union([z.literal('DESC'), z.literal('ASC')]),
-    })
-    .optional(),
-  category: z.array(z.string()).optional(),
+  limit: z.preprocess((v) => Number(v), z.number().min(1).max(20)),
+  last_key: z.preprocess((v) => Number(v), z.number()).optional(),
+  category: z.string(),
 })
 export type ArticleListRequest = z.infer<typeof ArticleListRequestSchema>
