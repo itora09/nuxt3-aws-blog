@@ -1,0 +1,134 @@
+Parameters:
+  LambdaS3Bucket:
+    Type: String
+  LambdaS3Key:
+    Type: String
+  LambdaFunctionNam:
+    Type: String
+  StaticS3Bucket:
+    Type: String
+
+Resources:
+  # nux3用のLamda
+  LambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Ref LambdaFunctionNam
+      Code:
+        S3Bucket: !Ref LambdaS3Bucket
+        S3Key: !Ref LambdaS3Key
+      Handler: index.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Runtime: nodejs18.x
+
+  # nuxt3用のLamdaで使うロール
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        - PolicyName: LambdaExecutionPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:*
+                Resource: arn:aws:logs:*:*:*
+
+  # nuxt3用の関数URLを作成するために必要なパーミッション
+  LambdaUrlFunctionPermissions:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref LambdaFunctionNam
+      Action: lambda:InvokeFunctionUrl
+      Principal: '*'
+      FunctionUrlAuthType: NONE
+    DependsOn:
+      - LambdaFunction
+
+  # nuxt3用の関数URlを作成する
+  LambdaFunctionUrl:
+    Type: AWS::Lambda::Url
+    Properties:
+      TargetFunctionArn: !Ref LambdaFunctionNam
+      AuthType: NONE
+    DependsOn:
+      - LambdaFunction
+
+  # cloud front ⇒ s3への参照をできるようにするためのOAI
+  OriginAccessIdentity:
+    Type: 'AWS::CloudFront::CloudFrontOriginAccessIdentity'
+    Properties:
+      CloudFrontOriginAccessIdentityConfig:
+        Comment: 'nuxt3 static'
+
+  # cloud front ⇒ s3への参照をできるようにするためのポリシー
+  StaticBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref StaticS3Bucket
+      PolicyDocument:
+        Statement:
+          - Action: s3:GetObject
+            Effect: Allow
+            Resource: !Sub arn:aws:s3:::${StaticS3Bucket}/*
+            Principal:
+              AWS: !Sub arn:aws:iam::cloudfront:user/CloudFront Origin Access Identity ${OriginAccessIdentity}
+    DependsOn:
+      - OriginAccessIdentity
+
+  # 静的リソースはs3、他はlambdaへ参照するようにcloud frontを設定する
+  CloudFrontDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        HttpVersion: http2
+        Origins:
+          - Id: MyLambdaFunction
+            DomainName:
+              !Select [2, !Split ['/', !GetAtt LambdaFunctionUrl.FunctionUrl]]
+            CustomOriginConfig:
+              HTTPPort: 80
+              HTTPSPort: 443
+              OriginProtocolPolicy: https-only
+          - Id: StaticS3
+            DomainName: !Sub '${StaticS3Bucket}.s3.${AWS::Region}.amazonaws.com'
+            S3OriginConfig:
+              OriginAccessIdentity: !Sub 'origin-access-identity/cloudfront/${OriginAccessIdentity}'
+        DefaultCacheBehavior:
+          TargetOriginId: MyLambdaFunction
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods:
+            - GET
+            - HEAD
+            - POST
+            - PUT
+            - PATCH
+            - OPTIONS
+            - DELETE
+          CachedMethods:
+            - GET
+            - HEAD
+          ForwardedValues:
+            QueryString: true
+            Cookies:
+              Forward: none
+        CacheBehaviors:
+          - PathPattern: '/_nuxt/*'
+            TargetOriginId: 'StaticS3'
+            ViewerProtocolPolicy: redirect-to-https
+            ForwardedValues:
+              QueryString: false
+    DependsOn:
+      - LambdaUrlFunctionPermissions
+      - OriginAccessIdentity

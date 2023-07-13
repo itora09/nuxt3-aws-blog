@@ -1,0 +1,26 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Resources:
+  LambdaBucket:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      VersioningConfiguration:
+        Status: Enabled
+
+  StaticBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      AccessControl: Private
+
+Outputs:
+  LambdaBucket:
+    Value: !Ref LambdaBucket
+    Description: The name of the S3 bucket for Lambda code deployment
+
+  AssetBucket:
+    Value: !Ref StaticBucket
+    Description: The name of the S3 bucket for Lambda code deployment
