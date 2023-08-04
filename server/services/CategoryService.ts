@@ -38,3 +38,8 @@ const categoryUpsert = async (data: Category) => {
   const json = queryResult[0].toJSON()
   await CategoryModel.update({ ...json, ...data })
 }
+
+export const getCategoryList = () => {
+  const query = CategoryModel.query('pk').eq('Category').sort('descending')
+  return query.exec()
+}
