@@ -1,4 +1,7 @@
-import { HTTP_ERROR_CODES } from '~/server/modules/constants'
+import {
+  HTTP_ERROR_CODES,
+  HTTP_SUCCESS_CODES,
+} from '~/server/modules/constants'
 import { CommonError } from '~/server/modules/error/CommonError'
 import { ValidationZodError } from '~/server/modules/error/ValidationZodError'
 import { getCategoryList } from '~/server/services/CategoryService'
@@ -6,7 +9,7 @@ import { getCategoryList } from '~/server/services/CategoryService'
 export default defineEventHandler(async (event) => {
   try {
     const categoryList = await getCategoryList()
-    setResponseStatus(event, 200)
+    setResponseStatus(event, HTTP_SUCCESS_CODES.OK)
     return categoryList
   } catch (error) {
     console.error(error)

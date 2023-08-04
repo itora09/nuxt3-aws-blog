@@ -1,4 +1,7 @@
-import { HTTP_ERROR_CODES } from '~/server/modules/constants'
+import {
+  HTTP_ERROR_CODES,
+  HTTP_SUCCESS_CODES,
+} from '~/server/modules/constants'
 import { CommonError } from '~/server/modules/error/CommonError'
 import { ValidationZodError } from '~/server/modules/error/ValidationZodError'
 import {
@@ -11,7 +14,7 @@ export default defineEventHandler(async (event) => {
   try {
     const resultQuery = validationListApi(query)
     const articleList = await getArticleList(resultQuery)
-    setResponseStatus(event, 200)
+    setResponseStatus(event, HTTP_SUCCESS_CODES.OK)
     return articleList
   } catch (error) {
     console.error(error)
